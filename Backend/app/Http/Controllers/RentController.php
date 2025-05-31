@@ -19,15 +19,50 @@ class RentController extends Controller
     // Create a new rent
     public function store(Request $request)
     {
-        //$rent = Rent::create($request->all());
-        $rent = DB::table('rentals')->insert([
-            'rental_date' => $request->input('rental_date'),
-            'return_date' => $request->input('return_date'),
-            'price' => $request->input('price'),
-            'user_id' => $request->input('user_id'),
-            'car_id' => $request->input('car_id')
-        ]);
-        return response()->json(['success' => true, 'data' => $rent], 201);
+        try {
+            // Validate request data
+            $validatedData = $request->validate([
+                'rental_date' => 'required|date',
+                'return_date' => 'required|date|after:rental_date',
+                'price' => 'required|numeric',
+                'user_id' => 'required|exists:users,id',
+                'car_id' => 'required|exists:cars,id'
+            ]);
+
+            // Check if car is available
+            $car = DB::table('cars')->where('id', $request->car_id)->first();
+            if (!$car || !$car->available) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Car is not available for rent'
+                ], 400);
+            }
+
+            // Create the rental
+            $rent = DB::table('rentals')->insert([
+                'rental_date' => $request->rental_date,
+                'return_date' => $request->return_date,
+                'price' => $request->price,
+                'user_id' => $request->user_id,
+                'car_id' => $request->car_id
+            ]);
+
+            // Update car availability
+            DB::table('cars')
+                ->where('id', $request->car_id)
+                ->update(['available' => false]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Rental created successfully',
+                'data' => $rent
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creating rental: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     // Get rents of a specific user

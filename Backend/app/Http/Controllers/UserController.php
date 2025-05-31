@@ -38,23 +38,35 @@ class UserController extends Controller
 
     public function login(Request $request)
     {
-
         $email = $request->input('email');
-        $user = User::where('email', $email)->get();
-        $password = $user->value('password');
+        $user = User::where('email', $email)->first();
 
-        if (!$user)
-            return response()->json(['success' => false, 'message' => 'Login Fail, no matches in our database']);
+        if (!$user) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Login failed, no user found with this email'
+            ], 404);
+        }
+
+        $password = $user->password;
 
         if (Auth::check()) {
             $user = Auth::user();
-
-            session(['id' => $user->id, 'firstname' => $user->firstname, 'lastname' => $user->lastname, 'telephone' => $user->telephone, 'email' => $user->email]);
-        } else {
-            //return response()->json(['error' => 'Authentication failed'], 401);
+            session([
+                'id' => $user->id, 
+                'firstname' => $user->firstname, 
+                'lastname' => $user->lastname, 
+                'telephone' => $user->telephone, 
+                'email' => $user->email
+            ]);
         }
 
-        return response()->json(['success' => true, 'message' => 'We\'ve found a match', 'data' => $user[0], 'pass' => $password], 200);
+        return response()->json([
+            'success' => true, 
+            'message' => 'Login successful', 
+            'data' => $user, 
+            'pass' => $password
+        ], 200);
     }
 
     public function logout()
