@@ -39,9 +39,8 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "eslint": "^8.56.0",
-    "eslint-config-react-app": "^7.0.1",
-    "eslint-plugin-react": "^7.33.2"
+    "eslint": "8.56.0",
+    "eslint-config-react-app": "7.0.1"
   },
   "scripts": {
     "start": "react-app-rewired start",
@@ -50,11 +49,7 @@
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
-    "extends": ["react-app"],
-    "rules": {
-      "no-unused-vars": "warn",
-      "react-hooks/exhaustive-deps": "warn"
-    }
+    "extends": "react-app"
   },
   "browserslist": {
     "production": [
