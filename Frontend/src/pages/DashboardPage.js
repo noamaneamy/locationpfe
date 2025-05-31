@@ -16,235 +16,260 @@ import {
   useDisclosure,
   useToast,
   Button,
+  HStack,
+  Text,
+  Badge,
 } from "@chakra-ui/react";
-import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
+import { AddIcon, DeleteIcon, EditIcon } from "@chakra-ui/icons";
 import AvatarMenu from "../components/navbar/avatar-menu";
 import SidebarContent from "../components/dashboard/sidebar-content";
 import SearchInput from "../components/search";
-import axios from "axios";
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import Navbar from "../components/navbar/Navbar";
 import EditItemDrawer from "../components/dashboard/edit-drawer";
 import { showToast } from "../components/toast-alert";
 import CreateItemDrawer from "../components/dashboard/create-drawer";
 import SearchContext from "../SearchContext";
 import { useTranslation } from "react-i18next";
+import API from "../config/api";
+import { useNavigate } from "react-router-dom";
 
 function Dashboard() {
   const { t } = useTranslation();
   const toast = useToast();
+  const navigate = useNavigate();
   const { searchResults, setSearchResults } = useContext(SearchContext);
   const [data, setData] = useState([]);
-  const [header, setHeader] = useState([
-    "id",
-    "brand",
-    "model",
-    "gearbox",
-    "type",
-    "price",
-    "availability",
-  ]);
+  const [header, setHeader] = useState([]);
   const [type, setType] = useState("");
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [selectedItem, setSelectedItem] = useState(null);
+  const { isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose } = useDisclosure();
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
 
-  const handleData = (type) => {
-    if (type == "Users") {
-      axios.get("http://127.0.0.1:8000/api/users").then((response) => {
-        setHeader(["id", "firstname", "lastname", "telephone", "email"]);
+  useEffect(() => {
+    const email = localStorage.getItem("email");
+    if (email !== "admin@gmail.com") {
+      navigate("/login");
+      return;
+    }
+  }, [navigate]);
+
+  const handleData = async (selectedType) => {
+    try {
+      let response;
+      switch (selectedType) {
+        case "Users":
+          response = await API.get("/users");
+          setHeader(["id", "firstname", "lastname", "telephone", "email"]);
+          setType("users");
+          break;
+        case "Cars":
+          response = await API.get("/cars");
+          setHeader([
+            "id",
+            "brand",
+            "model",
+            "gearbox",
+            "fuel_type",
+            "price",
+            "available",
+          ]);
+          setType("cars");
+          break;
+        case "Rents":
+          response = await API.get("/rents");
+          setHeader([
+            "id",
+            "rental_date",
+            "return_date",
+            "price",
+            "user_id",
+            "car_id",
+          ]);
+          setType("rents");
+          break;
+        default:
+          return;
+      }
+      
+      if (response?.data?.data) {
         setData(response.data.data);
-        setType("users");
-      });
-    } else if (type == "Cars") {
-      axios.get("http://127.0.0.1:8000/api/cars").then((response) => {
-        setHeader([
-          "id",
-          "brand",
-          "model",
-          "gearbox",
-          "fuel_type",
-          "price",
-          "available",
-        ]);
-        setData(response.data.data);
-        setType("cars");
-      });
-    } else if (type == "Rents") {
-      axios.get("http://127.0.0.1:8000/api/rents").then((response) => {
-        setHeader([
-          "id",
-          "rental_date",
-          "return_date",
-          "price",
-          "user_id",
-          "car_id",
-        ]);
-        setData(response.data.data);
-        setType("rents");
-      });
+        setSearchResults([]);
+      }
+    } catch (error) {
+      showToast(
+        toast,
+        `Error loading ${selectedType}: ${error.message}`,
+        "error",
+        "Error"
+      );
     }
   };
 
-  const handleUpdateItem = (itemId, updatedItem) => {
-    const endpoint = `http://127.0.0.1:8000/api/${type}/${itemId}`;
-
-    axios
-      .put(endpoint, updatedItem)
-      .then((response) => {
+  const handleUpdateItem = async (itemId, updatedItem) => {
+    try {
+      const response = await API.put(`/${type}/${itemId}`, updatedItem);
+      if (response?.data?.data) {
         showToast(toast, `${type} updated successfully!`, "success", "Success");
-        const updatedData = response.data.data;
-
         setData((prevData) =>
-          prevData.map((item) => {
-            if (item.id === itemId) {
-              return updatedData;
-            }
-            return item;
-          })
+          prevData.map((item) => (item.id === itemId ? response.data.data : item))
         );
-        console.log(response.data.message);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+        onEditClose();
+      }
+    } catch (error) {
+      showToast(
+        toast,
+        `Error updating ${type}: ${error.message}`,
+        "error",
+        "Error"
+      );
+    }
   };
 
-  const handleDelete = (id) => {
-    const endpoint = `http://127.0.0.1:8000/api/${type}/${id}`;
+  const handleDelete = async (id) => {
+    try {
+      await API.delete(`/${type}/${id}`);
+      showToast(toast, `${type} deleted successfully!`, "success", "Success");
+      setData((prevData) => prevData.filter((item) => item.id !== id));
+    } catch (error) {
+      showToast(
+        toast,
+        `Error deleting ${type}: ${error.message}`,
+        "error",
+        "Error"
+      );
+    }
+  };
 
-    axios
-      .delete(endpoint)
-      .then((response) => {
-        showToast(toast, `${type} deleted successfully!`, "success", "Success");
-        setData((prevData) => prevData.filter((item) => item.id !== id));
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+  const handleEdit = (item) => {
+    setSelectedItem(item);
+    onEditOpen();
+  };
+
+  const formatValue = (key, value) => {
+    if (key === "available") {
+      return (
+        <Badge colorScheme={value === 1 ? "green" : "red"}>
+          {value === 1 ? "Available" : "Not Available"}
+        </Badge>
+      );
+    }
+    if (key === "price") {
+      return `$${value}`;
+    }
+    if (key === "rental_date" || key === "return_date") {
+      return new Date(value).toLocaleDateString();
+    }
+    return value;
   };
 
   return (
-    <>
+    <Box minH="100vh" bg="gray.50">
       <Navbar
         sidebarContent={<SidebarContent handleData={handleData} />}
+        links={<></>}
         buttons={
           <>
-            <SearchInput type={type.toLowerCase()} />
+            <SearchInput type={type} />
             <AvatarMenu />
           </>
         }
       />
-      <Box as="section" minH="100vh">
-        <Box
-          ml={{
-            base: 0,
-            md: 60,
-          }}
-          transition=".3s ease"
-        >
-          <Box as="main" p={4}>
-            <Box borderWidth="4px" borderStyle="dashed" rounded="md" h="auto">
-              <Box h={"full"} w={"full"} overflowX="auto">
-                <TableContainer p={10}>
-                  <Flex align="center" justify="space-between" pb={5}>
-                    <Heading fontSize={{ base: "xl", md: "2xl" }} pb="5">
-                    {t("header.greeting")}
-                    </Heading>
-                    {type === "cars" && <CreateItemDrawer dataType={type} />}
-                  </Flex>
-                  <Table variant="striped" size={{ base: "sm", md: "md" }}>
-                    <Thead>
-                      <Tr>
-                        {header.map((title) => (
-                          <Th key={title}>{title}</Th>
+
+      <Box ml={{ base: 0, md: 60 }} p="4">
+        <Flex justifyContent="space-between" alignItems="center" mb={4}>
+          <Heading size="lg" textTransform="capitalize">
+            {type || "Dashboard"}
+          </Heading>
+          {type && (
+            <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onCreateOpen}>
+              Add {type.slice(0, -1)}
+            </Button>
+          )}
+        </Flex>
+
+        {!type && (
+          <Text fontSize="lg" color="gray.600" mb={4}>
+            Select a category from the sidebar to manage your data
+          </Text>
+        )}
+
+        {type && (
+          <Box bg="white" rounded="lg" shadow="base" overflow="hidden">
+            <TableContainer>
+              <Table variant="simple">
+                <Thead bg="gray.50">
+                  <Tr>
+                    {header.map((title) => (
+                      <Th key={title}>{title}</Th>
+                    ))}
+                    <Th>Actions</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {(searchResults.length > 0 ? searchResults : data).map(
+                    (item) => (
+                      <Tr key={item.id}>
+                        {header.map((key) => (
+                          <Td key={key}>{formatValue(key, item[key])}</Td>
                         ))}
-                        <Th>operations</Th>
+                        <Td>
+                          <HStack spacing={2}>
+                            <IconButton
+                              aria-label="Edit"
+                              icon={<EditIcon />}
+                              onClick={() => handleEdit(item)}
+                              colorScheme="blue"
+                              size="sm"
+                            />
+                            <IconButton
+                              aria-label="Delete"
+                              icon={<DeleteIcon />}
+                              onClick={() => handleDelete(item.id)}
+                              colorScheme="red"
+                              size="sm"
+                            />
+                          </HStack>
+                        </Td>
                       </Tr>
-                    </Thead>
-                    <Tbody>
-                      {searchResults && searchResults.length > 0
-                        ? searchResults.map((item) => (
-                            <Tr key={item.id}>
-                              {header.map((column) => {
-                                if (column == "available")
-                                  return (
-                                    <Td key={item.id}>
-                                      {item[column] == 0 ? "yes" : "no"}
-                                    </Td>
-                                  );
-                                else
-                                  return <Td key={column}>{item[column]}</Td>;
-                              })}
-                              <Td>
-                                <EditItemDrawer
-                                  dataType={type}
-                                  item={item}
-                                  onUpdate={(updatedItem) =>
-                                    handleUpdateItem(item.id, updatedItem)
-                                  }
-                                />
-                                <IconButton
-                                  onClick={() => handleDelete(item.id)}
-                                  bg={""}
-                                  _hover={{ bg: "red.500", color: "white" }}
-                                  ml={1}
-                                  aria-label="Delete"
-                                  icon={<DeleteIcon />}
-                                />
-                              </Td>
-                            </Tr>
-                          ))
-                        : data.map((item) => (
-                            <Tr key={item.id}>
-                              {header.map((column) => {
-                                if (column == "available")
-                                  return (
-                                    <Td key={item.id}>
-                                      {item[column] == 0 ? "yes" : "no"}
-                                    </Td>
-                                  );
-                                else
-                                  return <Td key={column}>{item[column]}</Td>;
-                              })}
-                              <Td>
-                                <EditItemDrawer
-                                  dataType={type}
-                                  item={item}
-                                  onUpdate={(updatedItem) =>
-                                    handleUpdateItem(item.id, updatedItem)
-                                  }
-                                />
-                                <IconButton
-                                  onClick={() => handleDelete(item.id)}
-                                  bg={""}
-                                  _hover={{ bg: "red.500", color: "white" }}
-                                  ml={1}
-                                  aria-label="Delete"
-                                  icon={<DeleteIcon />}
-                                />
-                              </Td>
-                            </Tr>
-                          ))}
-                    </Tbody>
-                  </Table>
-                </TableContainer>
-              </Box>
-            </Box>
+                    )
+                  )}
+                  {(searchResults.length === 0 && data.length === 0) && (
+                    <Tr>
+                      <Td colSpan={header.length + 1} textAlign="center">
+                        No data available
+                      </Td>
+                    </Tr>
+                  )}
+                </Tbody>
+              </Table>
+            </TableContainer>
           </Box>
-        </Box>
+        )}
       </Box>
-      {isOpen && (
-        <Drawer isOpen={isOpen} placement="left" onClose={onClose} size="xs">
-          <DrawerOverlay />
-          <DrawerContent>
-            <SidebarContent
-              handleData={handleData}
-              w="full"
-              borderRight="none"
-            />
-          </DrawerContent>
-        </Drawer>
+
+      {/* Create Drawer */}
+      {isCreateOpen && (
+        <CreateItemDrawer
+          dataType={type}
+          isOpen={isCreateOpen}
+          onClose={onCreateClose}
+          onUpdate={() => handleData(type.charAt(0).toUpperCase() + type.slice(1))}
+        />
       )}
-    </>
+
+      {/* Edit Drawer */}
+      {isEditOpen && selectedItem && (
+        <EditItemDrawer
+          dataType={type}
+          item={selectedItem}
+          isOpen={isEditOpen}
+          onClose={onEditClose}
+          onUpdate={handleUpdateItem}
+        />
+      )}
+    </Box>
   );
 }
+
 export default Dashboard;

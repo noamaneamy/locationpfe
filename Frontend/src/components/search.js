@@ -1,9 +1,9 @@
-import { SearchIcon, Icon } from "@chakra-ui/icons";
+import { SearchIcon } from "@chakra-ui/icons";
 import { InputGroup, InputLeftElement, Input } from "@chakra-ui/react";
 import { useContext, useEffect, useState } from "react";
 import SearchContext from "../SearchContext";
-import axios from "axios";
 import { useTranslation } from "react-i18next";
+import API from "../config/api";
 
 const SearchInput = ({ type }) => {
   const { t } = useTranslation();
@@ -16,13 +16,13 @@ const SearchInput = ({ type }) => {
     const fetchData = async () => {
       if (["rents", "users", "cars"].includes(type)) {
         try {
-          const response = await axios.get(`http://127.0.0.1:8000/api/${type}`);
+          const response = await API.get(`/${type}`);
           if (!cancelRequest) {
             setData(response.data.data);
             setSearchResults([]);
           }
         } catch (error) {
-          console.log(error);
+          console.error("Error fetching data:", error);
         }
       }
     };
@@ -57,16 +57,13 @@ const SearchInput = ({ type }) => {
   };
 
   return (
-    <InputGroup
-      w={{ base: "full", sm: "full", md: "300px" }}
-      ml={{ base: 5, sm: 5, md: "230px" }}
-    >
+    <InputGroup maxW="300px">
       <InputLeftElement pointerEvents="none">
-        <Icon as={SearchIcon} boxSize={3} />
+        <SearchIcon color="gray.300" />
       </InputLeftElement>
       <Input
         type="text"
-        placeholder={t("searchInput")}
+        placeholder={t("search.placeholder")}
         onChange={handleSearch}
       />
     </InputGroup>

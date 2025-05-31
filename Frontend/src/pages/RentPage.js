@@ -17,7 +17,6 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
-import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import LoadingSpinner from "../components/ui/loading-spinner";
 import { showToast } from "../components/toast-alert";
@@ -26,6 +25,7 @@ import Navbar from "../components/navbar/Navbar";
 import AvatarMenu from "../components/navbar/avatar-menu";
 import HomeSidebarContent from "../components/home/home-sidebar-content";
 import NavbarLinks from "../components/navbar/NavbarLinks";
+import API from "../config/api";
 
 function Rent() {
   const { t } = useTranslation();
@@ -42,10 +42,18 @@ function Rent() {
   const [totalPrice, setTotalPrice] = useState(0);
 
   useEffect(() => {
-    axios
-      .get(`http://127.0.0.1:8000/api/cars/${params.id}`)
+    API.get(`/cars/${params.id}`)
       .then((response) => {
         setCar(response.data.data[0]);
+        setLoading(false);
+      })
+      .catch((error) => {
+        showToast(
+          toast,
+          error.response?.data?.message || "Error loading car details.",
+          "error",
+          "Error"
+        );
         setLoading(false);
       });
   }, [params.id]);
@@ -91,38 +99,44 @@ function Rent() {
     const rentDuration = return_date - rental_date;
 
     if (rental_date < now || return_date < now) {
-      console.log("Please select a valid rental and return dates.");
-    } else if (rentDuration <= 0) {
-      console.log("You can rent for 1 day at least.");
-    } else {
-      const price = (rentDuration / (1000 * 60 * 60 * 24)) * car.price;
-
-      const rent = {
-        rental_date: rentalDate.current.value,
-        return_date: returnDate.current.value,
-        price: price,
-        user_id: localStorage.getItem("id"),
-        car_id: params.id,
-      };
-      console.log(rent);
-      if (rentalDate.current.value != "" && returnDate.current.value != "") {
-        axios
-          .post("http://127.0.0.1:8000/api/rents", rent)
-          .then((response) => {
-            showToast(
-              toast,
-              "Rent created successfully!",
-              "success",
-              "Success"
-            );
-            navigate("/cars");
-          })
-          .catch((error) => {
-            showToast(toast, "Creating a rent failed", "error", "Error");
-            console.error("Error creating rent:", error);
-          });
-      }
+      showToast(toast, "Please select valid rental and return dates that are in the future.");
+      return;
     }
+
+    if (rentDuration <= 0) {
+      showToast(toast, "Return date must be after rental date.");
+      return;
+    }
+
+    if (!rentalDate.current.value || !returnDate.current.value) {
+      showToast(toast, "Please fill in both rental and return dates.");
+      return;
+    }
+
+    const price = (rentDuration / (1000 * 60 * 60 * 24)) * car.price;
+
+    const rent = {
+      rental_date: rentalDate.current.value,
+      return_date: returnDate.current.value,
+      price: price,
+      user_id: localStorage.getItem("id"),
+      car_id: params.id,
+    };
+
+    API.post("/rents", rent)
+      .then((response) => {
+        showToast(
+          toast,
+          "Rental created successfully!",
+          "success",
+          "Success"
+        );
+        navigate("/cars");
+      })
+      .catch((error) => {
+        const errorMessage = error.response?.data?.message || "Error creating rental. Please try again.";
+        showToast(toast, errorMessage, "error", "Error");
+      });
   }
 
   return (

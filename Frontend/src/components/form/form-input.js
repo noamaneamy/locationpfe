@@ -1,16 +1,22 @@
-const FormInput = ({ name, type, refe }) => {
-  const nameCapitalized = name[0].toUpperCase() + name.substring(1);
+import { useTranslation } from "react-i18next";
+
+const FormInput = ({ name, type, placeholder, refe, required }) => {
+  const { t } = useTranslation();
+  const displayName = placeholder || (name ? name[0].toUpperCase() + name.substring(1) : "");
+
   return (
     <div className="form-group mb-3">
       <label className="form-label" htmlFor={name}>
-        {nameCapitalized}
+        {displayName}
       </label>
       <input
-        className="form-input"
+        className="form-control"
         type={type}
         id={name}
-        placeholder={nameCapitalized}
+        name={name}
+        placeholder={displayName}
         ref={refe}
+        required={required}
       />
     </div>
   );

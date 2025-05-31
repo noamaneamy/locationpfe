@@ -1,12 +1,12 @@
 import { useRef } from "react";
 import { useToast } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import bcrypt from "bcryptjs";
 import FormButton from "./form-button";
 import FormInput from "./form-input";
 import { showToast } from "../toast-alert";
 import { useTranslation } from "react-i18next";
+import API from "../../config/api";
 
 const SignUpForm = () => {
   const { t } = useTranslation();
@@ -20,41 +20,76 @@ const SignUpForm = () => {
   const password = useRef();
   const passwordRegEx = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
 
-  function createUserAcccount(e) {
+  async function createUserAccount(e) {
     e.preventDefault();
 
-    if (!password.current.value.match(passwordRegEx))
-      return showToast(
+    if (!password.current.value.match(passwordRegEx)) {
+      showToast(
         toast,
         "Password must be minimum 8 characters, at least 1 letter and 1 number."
       );
+      return;
+    }
 
-    const hashedPassword = bcrypt.hashSync(password.current.value);
-    axios
-      .post("http://127.0.0.1:8000/api/signup", {
+    try {
+      const hashedPassword = bcrypt.hashSync(password.current.value);
+      await API.post("/signup", {
         firstname: firstname.current.value,
         lastname: lastname.current.value,
         telephone: telephone.current.value,
         email: email.current.value,
         password: hashedPassword,
-      })
-      .then(() => {
-        showToast(toast, "Account created successfully.", "success", "Success");
-        navigate("/login");
-      })
-      .catch((error) => showToast(toast, error.response.data.message));
+      });
+
+      showToast(toast, "Account created successfully.", "success", "Success");
+      navigate("/login");
+    } catch (error) {
+      showToast(
+        toast,
+        error.response?.data?.message || "Error creating account. Please try again."
+      );
+    }
   }
 
   return (
     <div className="col-md-6 col-lg-6 p-md-5 px-4 py-5">
-      <form onSubmit={createUserAcccount}>
-        <FormInput name={t("form.firstname")} type="text" refe={firstname} />
-        <FormInput name={t("form.lastname")} type="text" refe={lastname} />
-        <FormInput name={t("form.telephone")} type="tel" refe={telephone} />
-        <FormInput name={t("form.email")} type="email" refe={email} />
-        <FormInput name={t("form.password")} type="password" refe={password} />
-
-        <FormButton bgColor="btn-secondary" btnText={t("form.createAccount")} />
+      <form onSubmit={createUserAccount}>
+        <FormInput
+          name="firstname"
+          type="text"
+          placeholder={t("form.firstname")}
+          refe={firstname}
+          required
+        />
+        <FormInput
+          name="lastname"
+          type="text"
+          placeholder={t("form.lastname")}
+          refe={lastname}
+          required
+        />
+        <FormInput
+          name="telephone"
+          type="tel"
+          placeholder={t("form.telephone")}
+          refe={telephone}
+          required
+        />
+        <FormInput
+          name="email"
+          type="email"
+          placeholder={t("form.email")}
+          refe={email}
+          required
+        />
+        <FormInput
+          name="password"
+          type="password"
+          placeholder={t("form.password")}
+          refe={password}
+          required
+        />
+        <FormButton type="submit" text={t("form.createAccount")} />
       </form>
     </div>
   );

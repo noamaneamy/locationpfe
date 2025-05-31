@@ -12,9 +12,9 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
+import API from "../../config/api";
 
 const AvatarMenu = () => {
   const { t } = useTranslation();
@@ -28,19 +28,16 @@ const AvatarMenu = () => {
     to_route(route);
   };
 
-  const handleLogout = (e) => {
+  const handleLogout = async (e) => {
     e.preventDefault();
 
-    axios
-      .get("http://127.0.0.1:8000/api/logout")
-      .then((response) => {
-        localStorage.clear();
-        //setIsLoggedIn(false);
-        navigate("/login");
-      })
-      .catch((e) => {
-        // ...
-      });
+    try {
+      await API.get("/logout");
+      localStorage.clear();
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const [currentLanguage, setCurrentLanguage] = useState("en");
@@ -51,57 +48,35 @@ const AvatarMenu = () => {
   };
 
   return (
-    <Box px={4}>
-      <Flex h={16} alignItems={"center"} justifyContent={"space-between"}>
-        <Flex alignItems={"center"}>
-          <Menu>
-            <MenuButton
-              as={Button}
-              rounded={"full"}
-              variant={"link"}
-              cursor={"pointer"}
-              minW={0}
-            >
-              <Avatar
-                size={"sm"}
-                src={
-                  "https://images.unsplash.com/photo-1534308143481-c55f00be8bd7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NTd8fHByb2ZpbGV8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60"
-                }
-              />
-            </MenuButton>
-            <MenuList>
-              <Box mt={4} textAlign="center">
-                <Text fontWeight="bold">{fullname}</Text>
-                <Text fontSize="sm" color={"gray"}>
-                  {email}
-                </Text>
-              </Box>
-              <MenuDivider />
-              <MenuItem onClick={() => navigate("/")}>
-                {t("menuList.home")}
-              </MenuItem>
-              <MenuItem
-                onClick={() => changeLanguage("en")}
-                style={{ display: currentLanguage === "en" ? "none" : "block" }}
-              >
-                {t("menuList.english")}
-              </MenuItem>
-              <MenuItem
-                onClick={() => changeLanguage("fr")}
-                style={{ display: currentLanguage === "fr" ? "none" : "block" }}
-              >
-                {t("menuList.french")}
-              </MenuItem>
-              <MenuItem onClick={() => navigate("/profile")}>
-                {t("menuList.profile")}
-              </MenuItem>
-              <MenuDivider />
-              <MenuItem onClick={handleLogout}>{t("menuList.logout")}</MenuItem>
-            </MenuList>
-          </Menu>
-        </Flex>
-      </Flex>
-    </Box>
+    <Menu>
+      <MenuButton
+        as={Button}
+        rounded={"full"}
+        variant={"link"}
+        cursor={"pointer"}
+        minW={0}
+      >
+        <Avatar size={"sm"} />
+      </MenuButton>
+      <MenuList>
+        <MenuItem>
+          <Box>
+            <Text fontWeight="500">{fullname}</Text>
+            <Text fontSize="sm" color="gray.500">
+              {email}
+            </Text>
+          </Box>
+        </MenuItem>
+        <MenuDivider />
+        <MenuItem onClick={() => navigate("/profile")}>
+          {t("navbar.profile")}
+        </MenuItem>
+        <MenuItem onClick={handleLogout}>{t("navbar.logout")}</MenuItem>
+        <MenuDivider />
+        <MenuItem onClick={() => changeLanguage("en")}>English</MenuItem>
+        <MenuItem onClick={() => changeLanguage("fr")}>Français</MenuItem>
+      </MenuList>
+    </Menu>
   );
 };
 
